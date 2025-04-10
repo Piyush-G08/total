@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vehicle Out Entry</title>
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/html5-qrcode.min.js"></script>  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #eaf8fc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      width: 100%;
+      max-width: 400px;
+      padding: 30px;
+      background: #ffffff;
+      border-radius: 15px;
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      background: linear-gradient(90deg, #4CAF50, #2196F3);
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-size: 2rem;
+      font-weight: bold;
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+    .form-group { margin-bottom: 15px; position: relative; }
+    .form-group input {
+      width: 100%; padding: 12px;
+      border-radius: 8px; border: 1px solid #ddd;
+      font-size: 1.1rem; background: #f9f9f9;
+    }
+    .form-group .camera-icon {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 1.5rem;
+      color: #4CAF50;
+    }
+    .form-group button {
+      width: 100%; padding: 12px;
+      background: #4CAF50; color: white;
+      border: none; border-radius: 8px;
+      font-size: 1.2rem; cursor: pointer;
+    }
+    .form-group button:hover { background: #388E3C; transform: scale(1.05); }
+    .ticket {
+      margin-top: 20px; padding: 15px;
+      background: #e8f5e9; border: 1px solid #4caf50;
+      border-radius: 10px; text-align: center; display: none;
+    }
+    .ticket.active { display: block; }
+    .print-btn, .logout-btn {
+      padding: 10px 20px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      margin: 5px 0;
+    }
+    .print-btn:hover, .logout-btn:hover {
+      background: #388E3C;
+    }
+    #scanner-container {
+      display: none;
+      width: 100%;
+      max-width: 400px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">Vehicle Out Entry</div>
+    
+    <div class="form-group">
+      <label for="ticket-number">Ticket Number</label>
+      <input type="text" id="ticket-number" placeholder="Enter ticket number">
+      <span class="camera-icon" onclick="startQRScanner()">📷</span>
+    </div>
+  
+    <div class="form-group">
+      <button onclick="processTicket()">Verify Ticket</button>
+    </div>
+  
+    <div class="ticket" id="ticket">
+      <h3>Exit Ticket</h3>
+      <p id="ticket-in-time"></p>
+      <p id="ticket-out-time"></p>
+      <p id="ticket-duration"></p>
+      <p id="ticket-bill"></p>
+      <button class="print-btn" onclick="printTicket()">Print</button>
+    </div>
+  
+    <!-- Scanner Container -->
+    <div id="scanner-container"></div>
+  
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+
+  <script>
+    async function processTicket() {
+      const ticketNumber = document.getElementById("ticket-number").value.trim();
+      if (!ticketNumber) {
+        alert("Please enter a valid ticket number.");
+        return;
+      }
+    
+      try {
+        const response = await fetch(`http://localhost:3000/api/vehicle-exit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticketNumber })
+        });
+        const data = await response.json();
+    
+        if (!data.success) throw new Error(data.message || "Ticket not found.");
+    
+        const ticket = data.ticket;
+        const entryTime = new Date(ticket.entryTime); // Parse the ISO string
+        const exitTime = new Date(ticket.exitTime); // Parse the ISO string
+    
+        document.getElementById("ticket-in-time").innerText = `In Time: ${entryTime.toLocaleString()}`;
+        document.getElementById("ticket-out-time").innerText = `Out Time: ${exitTime.toLocaleString()}`;
+        document.getElementById("ticket-duration").innerText = `Duration: ${ticket.duration}`;
+        document.getElementById("ticket-bill").innerText = `Total Bill: ₹${ticket.billAmount}`;
+    
+        document.getElementById("ticket").classList.add("active");
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+    
+    function startQRScanner() {
+      const scannerContainer = document.getElementById('scanner-container');
+      scannerContainer.style.display = 'block';
+      
+      const html5QrCode = new Html5Qrcode("scanner-container");
+      html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, 
+        (decodedText) => {
+          document.getElementById("ticket-number").value = decodedText;
+          html5QrCode.stop();
+          scannerContainer.style.display = 'none';
+          processTicket();
+        },
+        (errorMessage) => {}
+      ).catch((err) => {
+        console.error(err);
+      });
+    }
+    
+    function printTicket() {
+      const ticketContent = document.getElementById('ticket').innerHTML;
+    
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write('<html><head><title>Exit Ticket</title>' +
+          '<style>' +
+          'body, html { height: 100%; margin: 0; padding: 0; }' +
+          '.centered-content { display: flex; justify-content: center; align-items: center; flex-direction: column; height: 100%; }' +
+          '</style></head><body>');
+        printWindow.document.write('<div class="centered-content">' + ticketContent + '</div>');
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.print();
+      } else {
+        alert('Please allow the popup to print the ticket.');
+      }
+    }
+    
+    function logout() {
+      window.location.href = 'apphomepage.html';
+    }
+    </script>
+</body>
+</html>

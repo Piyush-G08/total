@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monthly Report</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #eaf8fc;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      width: 100%;
+      max-width: 800px;
+      padding: 30px;
+      background: #ffffff;
+      border-radius: 15px;
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      background: linear-gradient(90deg, #4CAF50, #2196F3);
+      color: white;
+      padding: 15px;
+      text-align: center;
+      font-size: 2rem;
+      font-weight: bold;
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    .report-table th, .report-table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    .report-table th {
+      background-color: #f2f2f2;
+    }
+    .print-btn, .back-btn {
+      padding: 10px 20px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+      margin: 5px 0;
+    }
+    .print-btn:hover, .back-btn:hover {
+      background: #388E3C;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">Monthly Report</div>
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>Ticket Number</th>
+          <th>Vehicle Type</th>
+          <th>Vehicle Number</th>
+          <th>Entry Time</th>
+          <th>Exit Time</th>
+          <th>Bill Amount</th>
+        </tr>
+      </thead>
+      <tbody id="monthly-report-body">
+        <!-- Monthly report data will be loaded here -->
+      </tbody>
+    </table>
+    <button class="print-btn" onclick="printMonthlyReport()">Print Report</button>
+    <button class="back-btn" onclick="goBack()">Back to Home</button>
+  </div>
+
+  <script>
+    async function loadMonthlyReport() {
+      try {
+        const response = await fetch('http://localhost:3000/api/monthly-report');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log('Data received from server:', data); // Debugging log
+        const monthlyReportBody = document.getElementById('monthly-report-body');
+        monthlyReportBody.innerHTML = '';
+        data.forEach(entry => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${sanitize(entry.ticketNumber)}</td>
+            <td>${sanitize(entry.vehicleType)}</td>
+            <td>${sanitize(entry.vehicleNumber)}</td>
+            <td>${sanitize(new Date(entry.entryTime).toLocaleString())}</td>
+            <td>${entry.exitTime ? sanitize(new Date(entry.exitTime).toLocaleString()) : '-'}</td>
+            <td>${entry.billAmount ? sanitize(`₹${entry.billAmount}`) : '-'}</td>
+          `;
+          monthlyReportBody.appendChild(row);
+        });
+      } catch (error) {
+        console.error('Failed to load monthly report:', error);
+        const monthlyReportBody = document.getElementById('monthly-report-body');
+        monthlyReportBody.innerHTML = '<tr><td colspan="6">Failed to load monthly report.</td></tr>';
+      }
+    }
+    
+    function sanitize(input) {
+      return input.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    
+    document.addEventListener('DOMContentLoaded', loadMonthlyReport);
+    
+    function printMonthlyReport() {
+      window.print();
+    }
+    
+    function goBack() {
+      window.location.href = 'vehicalinpage.html';
+    }
+    </script>
+</body>
+</html>
